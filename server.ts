@@ -37,7 +37,7 @@ async function startServer() {
   app.post("/api/solver/solve", async (req, res) => {
     try {
       const ai = getAIClient();
-      const { problem, level, imageBase64, imageMime } = req.body;
+      const { problem, level, imageBase64, imageMime, learningMode } = req.body;
       
       const contents: any[] = [];
       
@@ -55,11 +55,23 @@ async function startServer() {
           ? `The target student's category is: "${level}". Tailor the solution depth, pedagogical scaffolding, and vocabulary to match this grade selection perfectly.`
           : "";
 
+        let learningModeInstruction = "";
+        if (learningMode === "simple") {
+          learningModeInstruction = "CRITICAL: The student preferred a 'Simple' mode. Keep your explanation beginner-friendly, use simpler language, short sentences, and conceptual analogies where possible.";
+        } else if (learningMode === "visual") {
+          learningModeInstruction = "CRITICAL: The student preferred 'Visual' mode. Structure your explanation with highly visual structures, ASCII diagrams, or clear conceptual layouts.";
+        } else if (learningMode === "exam_focused") {
+          learningModeInstruction = "CRITICAL: The student preferred 'Exam Focused' mode. Keep answers concise, emphasize important formulas, highlighting shortcuts, and common pitfalls/traps to watch out for.";
+        } else {
+          learningModeInstruction = "CRITICAL: The student preferred 'Detailed' mode. Provide a deep conceptual explanation, including proofs where applicable, step-by-step resolution sequences, and thorough breakdowns of underlying theory.";
+        }
+
         contents.push(`You are MathVerse AI Solver. Your workflow:
         1. Parse the math question.
         2. Solve it carefully step-by-step.
         3. Formulate a crystal-clear, pedagogically elegant explanation.
         ${levelPrompt}
+        ${learningModeInstruction}
 
         Question: "${problem}"
 
@@ -112,6 +124,43 @@ async function startServer() {
     } catch (err: any) {
       console.error("Practice Gen Error:", err);
       res.status(500).json({ error: err?.message || "Failed to generate questions. Try again." });
+    }
+  });
+
+  // AI Study Plan Generator Endpoint
+  app.post("/api/planner/generate", async (req, res) => {
+    try {
+      const ai = getAIClient();
+      const { weakTopics, level } = req.body;
+
+      const topicsStr = Array.isArray(weakTopics) && weakTopics.length > 0
+        ? weakTopics.join(", ")
+        : "General Mathematics";
+
+      const prompt = `You are a highly capable AI Academic Coordinator and Study Advisor. 
+      Generate a customized, professional, and immersive step-by-step study plan tailored for:
+      - Academic Grade Level: "${level || "Class 9-10"}"
+      - Focus Areas / Weak Math Topics: "${topicsStr}"
+
+      Format the response in clean, beautiful Markdown. 
+      Structure the plan with sections for:
+      - "# Quantum Study Strategy Plan"
+      - "## Core Target Calibration" (summarizing what topics they need to learn and why)
+      - "## 7-Day Curricular Schedule" (day-by-day tasks, time blocks, and practice topics)
+      - "## Specialized Revision Tips & Formulas" (provide common formulas for the subjects and quick tips)
+      - "## Mental Wellness & Focus Rules" (inspiring focus and healthy studying advice)
+
+      Use engaging, futuristic, and encouraging language. Wrap LaTeX math formulas in $...$ syntax like $f(x) = \int x\,dx$.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+      });
+
+      res.json({ plan: response.text });
+    } catch (err: any) {
+      console.error("Study Planner Gen Error:", err);
+      res.status(500).json({ error: err?.message || "Failed to generate AI study plan. Try again." });
     }
   });
 

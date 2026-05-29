@@ -13,27 +13,16 @@ if (!apiKey) {
 // Initialize the official Google Gen AI SDK
 const genAI = new GoogleGenerativeAI(apiKey || "");
 
-export const generateMathSolution = async (question: string, level: string): Promise<string> => {
+export const generateMathSolution = async (question: string, level: string, learningMode?: string): Promise<string> => {
   if (!question.trim()) {
     throw new Error('Question cannot be empty');
   }
   try {
-    const response = await fetch('/api/solver/solve', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ problem: question, level }),
-    });
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Failed to get solution from server');
-    }
-    const data = await response.json();
-    if (!data.result) {
-      throw new Error('Empty response from Gemini service');
-    }
-    return data.result;
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    const prompt = `Solve this math problem: ${question}. Level: ${level}. Learning Mode: ${learningMode || 'default'}`;
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
   } catch (error: any) {
     console.error('Gemini AI Service Error:', error);
     // Preserve original detailed messages for UI
@@ -48,32 +37,30 @@ export const generateMathSolution = async (question: string, level: string): Pro
  * Solve a math problem from an image file (upload or camera).
  * Reads the file as a base64 DataURL and sends it to the backend.
  */
-export const solveMathFromImage = async (imageFile: File, level?: string): Promise<string> => {
+export const solveMathFromImage = async (imageFile: File, level?: string, learningMode?: string): Promise<string> => {
   const mime = imageFile.type;
   const base64 = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
     reader.onerror = (e) => reject(e);
     reader.readAsDataURL(imageFile);
   });
 
   try {
-    const response = await fetch('/api/solver/solve', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        imageBase64: base64,
-        imageMime: mime,
-        level: level ?? ''
-      }),
-    });
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Failed to get solution from server');
-    }
-    const data = await response.json();
-    if (!data.result) throw new Error('Empty response from Gemini service');
-    return data.result;
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    const result = await model.generateContent([
+      `Solve this math problem. Level: ${level}. Learning Mode: ${learningMode || 'default'}`,
+      {
+        inlineData: {
+          data: base64,
+          mimeType: mime
+        }
+      }
+    ]);
+    const response = await result.response;
+    const text = response.text();
+    if (!text) throw new Error('Empty response from Gemini service');
+    return text;
   } catch (error: any) {
     console.error('Gemini Image Solver Error:', error);
     throw new Error(error.message || 'Error solving from image');

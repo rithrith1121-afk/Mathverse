@@ -10,11 +10,19 @@ export interface MathLevel {
 }
 
 export interface UserState {
+  id?: string;
   email: string | null;
   currentLevel: MathLevel | null;
   onboarded: boolean;
   score: number;
   solvedProblems: number;
+  avatar_url?: string; // URL of user's profile avatar
+  learningMode?: 'simple' | 'detailed' | 'visual' | 'exam_focused';
+  // Smart Settings
+  selectedTheme?: string;
+  fontScale?: number; // e.g., 1 = 100%
+  highContrast?: boolean;
+  reducedMotion?: boolean;
 }
 
 export interface SolvedProblem {

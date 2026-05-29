@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { Sparkles, ArrowLeft, Loader2, PlaySquare, AlertCircle, Copy, Check, CheckCircle2, Upload, Camera } from "lucide-react";
 import { MathLevel, UserState } from "../types";
 import { generateMathSolution, solveMathFromImage } from "../services/aiService";
-import { supabase } from "../lib/supabase";
+
+
 
 interface AISolverScreenProps {
   userState: UserState;
@@ -60,45 +61,6 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
     setPreviewUrl(null);
   };
 
-  // Camera handling
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-      setCameraActive(true);
-    } catch (err) {
-      setError('Camera permission denied or unavailable.');
-    }
-  };
-
-  const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const ctx = canvasRef.current.getContext('2d');
-    if (!ctx) return;
-    canvasRef.current.width = videoRef.current.videoWidth;
-    canvasRef.current.height = videoRef.current.videoHeight;
-    ctx.drawImage(videoRef.current, 0, 0);
-    canvasRef.current.toBlob(blob => {
-      if (blob) {
-        const file = new File([blob], 'capture.png', { type: blob.type });
-        setUploadedFile(file);
-        setPreviewUrl(URL.createObjectURL(file));
-        stopCamera();
-      }
-    }, 'image/png');
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-    }
-    setCameraActive(false);
-  };
-
   // Clean up object URLs on unmount
   useEffect(() => {
     return () => {
@@ -115,9 +77,9 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
     try {
       let result: string;
       if (uploadedFile) {
-        result = await solveMathFromImage(uploadedFile, currentLevel.name);
+        result = await solveMathFromImage(uploadedFile, currentLevel.name, userState.learningMode);
       } else {
-        result = await generateMathSolution(problemText, currentLevel.name);
+        result = await generateMathSolution(problemText, currentLevel.name, userState.learningMode);
       }
       setSolutionHTML(result);
       onIncrementSolved();
@@ -242,8 +204,12 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
               </div>
             </div>
 
-            {/* Input Form */}
-            <form onSubmit={handleSolve} className="glass-panel rounded-2xl p-6 border border-slate-800/80 space-y-4">
+            <form onSubmit={handleSolve}>
+              <div className="flex gap-4 mb-4">
+                
+
+              </div>
+
               <textarea
                 required
                 placeholder="e.g. Find the roots of f(x) = x^3 - 3x^2 + x - 3 or formulate a step-by-step limits rule."
@@ -369,10 +335,10 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
 
               </div>
             )}
-
-          </div>
-
         </div>
+</div>
+
+
       </main>
     </div>
   );

@@ -1,4 +1,7 @@
-import { Sparkles, BrainCircuit, Play, Award, RotateCcw, Flame, ArrowRight, Compass, ShieldAlert } from "lucide-react";
+import React from "react";
+import { Sparkles, BrainCircuit, Play, Award, RotateCcw, Flame, ArrowRight, Compass, ShieldAlert, User, BarChart2 } from "lucide-react";
+import AvatarDropdown from "./AvatarDropdown";
+import { supabase } from "../lib/supabase";
 import { MathLevel, UserState } from "../types";
 
 interface DashboardScreenProps {
@@ -7,6 +10,9 @@ interface DashboardScreenProps {
   onPracticeRedirect: (selectedTopic?: string) => void;
   onProfileRedirect: () => void;
   onChangeLevelRedirect: () => void;
+  onDiagnosticsRedirect: () => void;
+  onLogOut: () => void;
+  onAvatarChange?: (url: string) => void;
 }
 
 export default function DashboardScreen({
@@ -15,8 +21,18 @@ export default function DashboardScreen({
   onPracticeRedirect,
   onProfileRedirect,
   onChangeLevelRedirect,
+  onDiagnosticsRedirect,
+  onLogOut,
+  onAvatarChange,
 }: DashboardScreenProps) {
   const currentLevel: MathLevel = userState.currentLevel!;
+  const [userId, setUserId] = React.useState<string>('');
+  React.useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id);
+    });
+  }, []);
+
 
   return (
     <div className="relative min-h-screen">
@@ -34,12 +50,14 @@ export default function DashboardScreen({
 
         {/* User Account Controls */}
         <div className="flex items-center gap-4">
-          <button
-            onClick={onProfileRedirect}
-            className="text-xs transition-colors py-1.5 px-3 rounded-lg border border-slate-800 hover:border-cyan-500 bg-[#0a0e1a]/40 font-mono text-slate-300 hover:text-cyan-400 cursor-pointer flex items-center gap-2 focus:outline-none max-w-[150px] sm:max-w-none"
-          >
-            <span className="truncate max-w-[100px] sm:max-w-[200px] md:max-w-none inline-block align-bottom">{userState.email || "Guest Node"}</span>
-          </button>
+          <AvatarDropdown
+            userId={userId}
+            email={userState.email}
+            avatarUrl={userState.avatar_url}
+            onLogout={onLogOut}
+            onViewProfile={onProfileRedirect}
+            onAvatarChange={onAvatarChange}
+          />
         </div>
       </header>
 
@@ -61,12 +79,20 @@ export default function DashboardScreen({
               </p>
             </div>
 
-            <button
-              onClick={onChangeLevelRedirect}
-              className="flex items-center gap-1.5 text-xs font-mono py-2 px-4 rounded-xl cursor-pointer border border-slate-800 hover:border-cyan-500 hover:bg-cyan-500/5 transition-all text-slate-400 hover:text-cyan-400"
-            >
-              <RotateCcw className="w-3.5 h-3.5" /> Shift Orbit
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={onDiagnosticsRedirect}
+                className="flex items-center gap-1.5 text-xs font-mono py-2 px-4 rounded-xl cursor-pointer border border-slate-800 hover:border-cyan-500 hover:bg-cyan-500/5 transition-all text-slate-400 hover:text-cyan-400"
+              >
+                <BarChart2 className="w-3.5 h-3.5 text-[#00FBFF]" /> Analytics Deck
+              </button>
+              <button
+                onClick={onChangeLevelRedirect}
+                className="flex items-center gap-1.5 text-xs font-mono py-2 px-4 rounded-xl cursor-pointer border border-slate-800 hover:border-cyan-500 hover:bg-cyan-500/5 transition-all text-slate-400 hover:text-cyan-400"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Shift Orbit
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8 border-t border-slate-800/60 pt-6">
