@@ -92,7 +92,8 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
         });
       }
     } catch (err: any) {
-      setError(err?.message || 'Failed to reach Gemini. Verify env keys in settings.');
+      console.error('Gemini error caught:', err);
+      setError('MathVerse AI temporarily unavailable.');
     } finally {
       setSolving(false);
     }

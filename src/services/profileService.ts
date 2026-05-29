@@ -196,25 +196,25 @@ export async function uploadProfileBanner(userId: string, file: File): Promise<s
 export async function getLearningPreferences(userId: string): Promise<LearningPreference> {
   const { data, error } = await supabase
     .from('learning_preferences')
-    .select('user_id, mode')
+    .select('user_id, learning_mode')
     .eq('user_id', userId)
     .single();
 
   if (error) {
     if (error.code === 'PGRST116' || error.code === 'PGRST404') {
       const { data: newPref, error: insertError } = await supabase
-        .from('learning_preferences')
-        .insert({ user_id: userId, mode: 'detailed' })
-        .select()
-        .single();
+          .from('learning_preferences')
+          .insert({ user_id: userId, learning_mode: 'detailed' })
+          .select()
+          .single();
       
       if (insertError) throw insertError;
-      return newPref;
+      return { user_id: newPref.user_id, mode: newPref.learning_mode };
     }
     throw error;
   }
 
-  return data;
+  return { user_id: data.user_id, mode: data.learning_mode };
 }
 
 /**
@@ -223,8 +223,7 @@ export async function getLearningPreferences(userId: string): Promise<LearningPr
 export async function saveLearningMode(userId: string, mode: LearningPreference['mode']): Promise<void> {
   const { error } = await supabase
     .from('learning_preferences')
-    .upsert({ user_id: userId, mode })
-    .eq('user_id', userId);
+    .upsert({ user_id: userId, learning_mode: mode }, { onConflict: 'user_id' });
 
   if (error) throw error;
 }

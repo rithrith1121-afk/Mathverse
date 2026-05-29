@@ -104,6 +104,19 @@ export default function App() {
         }
       }
 
+      // Automatically check & create learning_preferences if missing
+      try {
+        await supabase.from('learning_preferences').upsert({
+          user_id: session.user.id,
+          learning_mode: 'simple',
+          font_size: 'medium',
+          accessibility_mode: false,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' }); // Handle existing user entry safely
+      } catch (prefErr) {
+        console.error('Failed to auto-create learning preferences:', prefErr);
+      }
+
       try {
         const prefData = await getLearningPreferences(session.user.id);
         modePref = prefData.mode;
