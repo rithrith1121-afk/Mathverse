@@ -12,7 +12,7 @@ import { supabase } from "./lib/supabase";
 import { getUserProfile, getLearningPreferences } from "./services/profileService";
 import { UserState, MathLevel } from "./types";
 import { initialiseCloudSync } from './services/cloudSyncService';
-import { upsertUserProfile } from './services/profileService';
+
 
 
 
@@ -41,9 +41,7 @@ export default function App() {
     };
   });
 
-  const [showProfilePrompt, setShowProfilePrompt] = useState(false);
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string>('');
+
   const [sessionData, setSessionData] = useState<any>(null);
   const [selectedPracticeTopic, setSelectedPracticeTopic] = useState<string | undefined>(undefined);
 
@@ -88,9 +86,22 @@ export default function App() {
         const profileData = await getUserProfile(session.user.id);
         avatarUrl = profileData.avatar_url;
       } catch (profileErr) {
-        // Profile missing – prompt creation
-        console.warn('Profile missing, prompting creation');
-        setShowProfilePrompt(true);
+        // Profile missing – auto-create silently
+        console.warn('Profile missing, creating automatically');
+        try {
+          await supabase.from('profiles').upsert({
+            id: session.user.id,
+            email: session.user.email,
+            username: session.user.email?.split('@')[0] || null,
+            selected_theme: 'dark',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+          const refreshed = await getUserProfile(session.user.id);
+          avatarUrl = refreshed.avatar_url;
+        } catch (e) {
+          console.error('Failed to auto-create profile', e);
+        }
       }
 
       try {
@@ -284,57 +295,7 @@ export default function App() {
         />
       )}
 
-      {/* Profile creation prompt modal */}
-      {showProfilePrompt && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-          <div className="bg-[#1a1e2b] text-slate-200 p-6 rounded-lg shadow-lg max-w-sm w-full">
-            <h2 className="text-xl font-semibold mb-4">Create Profile</h2>
-            <p className="mb-4">A user profile does not exist yet. Would you like to create one now?</p>
-            <>
-                <div className="flex justify-end space-x-4">
-                  <button
-                    className="px-4 py-2 bg-gray-600 rounded"
-                    onClick={() => {
-                      setShowProfilePrompt(false);
-                      setScreen('dashboard');
-                    }}
-                    disabled={savingProfile}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="px-4 py-2 bg-indigo-600 rounded"
-                    onClick={async () => {
-                      if (!sessionData) return;
-                      setSavingProfile(true);
-                      try {
-                        await upsertUserProfile(sessionData.user.id, sessionData.user.email);
-                        setShowProfilePrompt(false);
-                        const refreshed = await getUserProfile(sessionData.user.id);
-                        setScreen('profile');
-                      } catch (e: any) {
-                        console.error('Failed to create profile', e);
-                        setErrorMsg(e.message || 'Failed to create profile');
-                      } finally {
-                        setSavingProfile(false);
-                      }
-                    }}
-                    disabled={savingProfile}
-                  >
-                    {savingProfile ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> Creating...
-                      </>
-                    ) : (
-                      'Create'
-                    )}
-                  </button>
-                </div>
-                {errorMsg && <p className="mt-2 text-sm text-red-500">{errorMsg}</p>}
-            </>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
