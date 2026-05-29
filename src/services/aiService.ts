@@ -70,12 +70,115 @@ Please format your response strictly as requested in the system instructions.`;
     const result = await model.generateContent(prompt);
     const response = await result.response;
     return response.text();
-  } catch (error: any) {
-    console.error('Gemini AI Service Error:', error);
-    if (error.message?.includes('API key')) {
-      throw new Error('Invalid Gemini API Key. Please verify your configuration.');
+// Local solver fallback for simple mathematical problems when API is unavailable
+const fallbackLocalSolver = (question: string, level: string): string => {
+  const normalized = question.toLowerCase().trim();
+  
+  // Basic Arithmetic Addition/Subtraction/Multiplication/Division solver
+  const mathRegex = /(\d+)\s*([\+\-\*\/])\s*(\d+)/;
+  const match = normalized.match(mathRegex);
+  if (match) {
+    const num1 = parseFloat(match[1]);
+    const op = match[2];
+    const num2 = parseFloat(match[3]);
+    let result = 0;
+    switch (op) {
+      case '+': result = num1 + num2; break;
+      case '-': result = num1 - num2; break;
+      case '*': result = num1 * num2; break;
+      case '/': result = num1 / num2; break;
     }
-    throw new Error(error.message || 'An unexpected error occurred while contacting Gemini.');
+    return `### 1. Problem Understanding
+We need to compute the basic arithmetic expression: $${num1} ${op} ${num2}$ under the calibrated level of **${level}**.
+
+### 2. Formula Used
+Standard elementary arithmetic operators apply.
+
+### 3. Step-by-Step Solution
+1. Identify the first term: $${num1}$.
+2. Identify the second term: $${num2}$.
+3. Perform the mathematical operations:
+   $$ ${num1} ${op} ${num2} = ${result} $$
+
+### 4. Final Answer
+$$ ${result} $$
+
+### 5. Quick Explanation
+The solution is reached by running simple local arithmetic fallback parsing because the cloud AI service is offline.
+
+### 6. Alternative Method
+No alternative derivation steps are needed for basic calculations.`;
+  }
+
+  // General fallback text
+  return `### 1. Problem Understanding
+The user requested solving: "${question}".
+
+### 2. Formula Used
+Unavailable (Local Fallback Mode active).
+
+### 3. Step-by-Step Solution
+*MathVerse local engines could not parse this complex algebraic or engineering concept offline.*
+
+### 4. Final Answer
+N/A (Cloud solver offline)
+
+### 5. Quick Explanation
+Please verify your API settings or retry shortly.
+
+### 6. Alternative Method
+Consider breaking down the mathematical terms or checking internet configurations.`;
+};
+
+// Handle and format quota/API errors in a standardized structure
+const handleGeminiError = (error: any, question: string, level: string): never => {
+  console.error("Gemini AI Service Error Details:", error);
+  const errMsg = error.message || "";
+  
+  if (errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("limit")) {
+    // Attempt to extract any potential numeric retry delay mentioned in the message
+    const delayMatch = errMsg.match(/(\d+)\s*(s|sec|seconds|second)/i);
+    const retryAfter = delayMatch ? parseInt(delayMatch[1], 10) : 30; // default to 30s
+    
+    // Throw a structured JSON error to be parsed easily by the UI
+    const quotaErrorObj = {
+      ok: false,
+      type: "quota_exceeded",
+      retryAfter,
+      message: "MathVerse AI quota is temporarily exhausted. Please try again later.",
+      fallbackSolution: fallbackLocalSolver(question, level)
+    };
+    throw new Error(JSON.stringify(quotaErrorObj));
+  }
+
+  if (errMsg.includes("API key")) {
+    throw new Error("Invalid Gemini API Key. Please verify your configuration.");
+  }
+
+  throw new Error(errMsg || "An unexpected error occurred while contacting Gemini.");
+};
+
+export const generateMathSolution = async (question: string, level: string, learningMode?: string): Promise<string> => {
+  if (!question.trim()) {
+    throw new Error('Question cannot be empty');
+  }
+  try {
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.0-flash",
+      systemInstruction: MATHVERSE_SYSTEM_INSTRUCTION
+    });
+    
+    const prompt = `Solve this math problem: "${question}".
+Target Calibration Level: ${level}.
+Selected Learning Mode: ${learningMode || 'default'}.
+
+Please format your response strictly as requested in the system instructions.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+  } catch (error: any) {
+    return handleGeminiError(error, question, level);
   }
 };
 
@@ -119,8 +222,7 @@ Solve the extracted problem completely and format your response strictly as requ
     if (!text) throw new Error('Empty response from Gemini service');
     return text;
   } catch (error: any) {
-    console.error('Gemini Image Solver Error:', error);
-    throw new Error(error.message || 'Error solving from image');
+    return handleGeminiError(error, "[image input]", level || "standard");
   }
 };
 

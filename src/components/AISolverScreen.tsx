@@ -68,9 +68,29 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
     };
   }, [previewUrl]);
 
+  const [quotaCountdown, setQuotaCountdown] = useState<number>(0);
+  const [quotaActive, setQuotaActive] = useState<boolean>(false);
+
+  // Handle countdown interval if quota limit is activated
+  useEffect(() => {
+    if (quotaCountdown <= 0) {
+      if (quotaActive) {
+        setQuotaActive(false);
+        setError("");
+      }
+      return;
+    }
+    const timer = setInterval(() => {
+      setQuotaCountdown(prev => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [quotaCountdown, quotaActive]);
+
   const handleSolve = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!problemText.trim() && !uploadedFile) return;
+    if (quotaActive) return;
+
     setSolving(true);
     setError("");
     setSolutionHTML(null);
@@ -93,6 +113,22 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
       }
     } catch (err: any) {
       console.error('Gemini error caught:', err);
+      try {
+        // Try parsing as structured quota error
+        const structuredErr = JSON.parse(err.message);
+        if (structuredErr.type === 'quota_exceeded') {
+          setError(structuredErr.message);
+          setQuotaCountdown(structuredErr.retryAfter || 30);
+          setQuotaActive(true);
+          // Load local solver fallback solutions automatically to keep UI fully responsive
+          if (structuredErr.fallbackSolution) {
+            setSolutionHTML(structuredErr.fallbackSolution);
+          }
+          return;
+        }
+      } catch (parseErr) {
+        // Not a structured JSON error, handle generic fallback
+      }
       setError('MathVerse AI temporarily unavailable.');
     } finally {
       setSolving(false);
@@ -221,15 +257,20 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
               />
               <button
                 type="submit"
-                disabled={solving || !problemText.trim()}
+                disabled={solving || !problemText.trim() || quotaActive}
                 className={`w-full cursor-pointer bg-gradient-to-r from-cyan-500 to-cyan-300 font-mono text-xs uppercase tracking-wider font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all duration-300 text-slate-950 ${
-                  solving || !problemText.trim() ? "opacity-35 cursor-not-allowed" : "hover:shadow-[0_0_20px_rgba(3,226,255,0.4)]"
+                  solving || !problemText.trim() || quotaActive ? "opacity-35 cursor-not-allowed" : "hover:shadow-[0_0_20px_rgba(3,226,255,0.4)]"
                 }`}
               >
                 {solving ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
                     <span>Resolving Orbit...</span>
+                  </>
+                ) : quotaActive ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                    <span>Cooldown active ({quotaCountdown}s)...</span>
                   </>
                 ) : (
                   <>
@@ -268,16 +309,27 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
 
             {/* If error */}
             {error && (
-              <div className="glass-card rounded-2xl p-6 border border-red-500/30 bg-red-950/10 flex items-start gap-4 min-h-[150px]">
+              <div className="glass-card rounded-2xl p-6 border border-red-500/30 bg-red-950/10 flex items-start gap-4 min-h-[150px] mb-4">
                 <AlertCircle className="text-red-400 w-6 h-6 flex-shrink-0 mt-0.5" />
                 <div className="space-y-2">
-                  <h4 className="text-red-200 font-bold text-sm">Resolution Collision Detected</h4>
+                  <h4 className="text-red-200 font-bold text-sm">Resolution Calibration Limit</h4>
                   <p className="text-xs text-red-300/80 leading-relaxed max-w-md">
                     {error}
                   </p>
-                  <p className="text-[10px] text-slate-500 font-mono mt-4">
-                    Verify GEMINI_API_KEY inside the workspace settings secrets.
-                  </p>
+                  {quotaActive && (
+                    <p className="text-xs text-amber-400 font-mono">
+                      Quota Limit Cooldown: Re-calibrating in **{quotaCountdown}** seconds.
+                    </p>
+                  )}
+                  <div className="text-[10px] text-slate-400 font-mono mt-4 pt-4 border-t border-white/5 space-y-1.5">
+                    <p className="text-cyan-400 font-semibold uppercase tracking-wider">💡 Troubleshooting Steps:</p>
+                    <ul className="list-disc pl-4 space-y-1 text-slate-400">
+                      <li>Ensure your Google AI Studio API key project has available free-tier quota.</li>
+                      <li>Review your key usage limits inside the Google Cloud Console / AI Studio settings.</li>
+                      <li>Verify if you need to upgrade billing or generate a new API key.</li>
+                      <li>Local offline arithmetic parser fallbacks will render step equations immediately below where possible.</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             )}
