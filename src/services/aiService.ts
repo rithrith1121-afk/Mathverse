@@ -57,7 +57,7 @@ export const generateMathSolution = async (question: string, level: string, lear
   }
   try {
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       systemInstruction: MATHVERSE_SYSTEM_INSTRUCTION
     });
     
@@ -94,7 +94,7 @@ export const solveMathFromImage = async (imageFile: File, level?: string, learni
 
   try {
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       systemInstruction: MATHVERSE_SYSTEM_INSTRUCTION
     });
 
