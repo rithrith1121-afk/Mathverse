@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Sparkles, ArrowLeft, Loader2, PlaySquare, AlertCircle, Copy, Check, CheckCircle2, Upload, Camera } from "lucide-react";
+import { Sparkles, ArrowLeft, Loader2, PlaySquare, AlertCircle, Copy, Check, CheckCircle2 } from "lucide-react";
 import { MathLevel, UserState } from "../types";
 import { generateMathSolution, solveMathFromImage } from "../services/aiService";
-
-
+import { supabase } from "../lib/supabase";
 
 interface AISolverScreenProps {
   userState: UserState;
@@ -37,9 +36,6 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [cameraActive, setCameraActive] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Handle file upload selection
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,28 +64,9 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
     };
   }, [previewUrl]);
 
-  const [quotaCountdown, setQuotaCountdown] = useState<number>(0);
-  const [quotaActive, setQuotaActive] = useState<boolean>(false);
-
-  // Handle countdown interval if quota limit is activated
-  useEffect(() => {
-    if (quotaCountdown <= 0) {
-      if (quotaActive) {
-        setQuotaActive(false);
-        setError("");
-      }
-      return;
-    }
-    const timer = setInterval(() => {
-      setQuotaCountdown(prev => prev - 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [quotaCountdown, quotaActive]);
-
   const handleSolve = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!problemText.trim() && !uploadedFile) return;
-    if (quotaActive) return;
 
     setSolving(true);
     setError("");
@@ -101,35 +78,24 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
       } else {
         result = await generateMathSolution(problemText, currentLevel.name, userState.learningMode);
       }
-      setSolutionHTML(result);
-      onIncrementSolved();
-      if (userState.email) {
-        await supabase.from("ai_history").insert({
-          user_email: userState.email,
-          question: uploadedFile ? '[image]' : problemText,
-          answer: result,
-          input_type: uploadedFile ? 'upload' : 'text'
-        });
+      
+      if (result === "MathVerse AI is temporarily unavailable.") {
+        setError(result);
+      } else {
+        setSolutionHTML(result);
+        onIncrementSolved();
+        if (userState.email) {
+          await supabase.from("ai_history").insert({
+            user_email: userState.email,
+            question: uploadedFile ? '[image]' : problemText,
+            answer: result,
+            input_type: uploadedFile ? 'upload' : 'text'
+          });
+        }
       }
     } catch (err: any) {
-      console.error('Gemini error caught:', err);
-      try {
-        // Try parsing as structured quota error
-        const structuredErr = JSON.parse(err.message);
-        if (structuredErr.type === 'quota_exceeded') {
-          setError(structuredErr.message);
-          setQuotaCountdown(structuredErr.retryAfter || 30);
-          setQuotaActive(true);
-          // Load local solver fallback solutions automatically to keep UI fully responsive
-          if (structuredErr.fallbackSolution) {
-            setSolutionHTML(structuredErr.fallbackSolution);
-          }
-          return;
-        }
-      } catch (parseErr) {
-        // Not a structured JSON error, handle generic fallback
-      }
-      setError('MathVerse AI temporarily unavailable.');
+      console.error('Groq error caught:', err);
+      setError('MathVerse AI is temporarily unavailable.');
     } finally {
       setSolving(false);
     }
@@ -222,7 +188,7 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
                 <Sparkles className="w-4 h-4 text-[#00FBFF]" /> Math Solver Synthesizer
               </h3>
               <p className="text-xs text-slate-400 font-sans leading-relaxed">
-                Provide equations, complex calculus Integrals, linear maps, or discrete math proofs. Gemini translates details into detailed educational steps.
+                Provide equations, complex calculus Integrals, linear maps, or discrete math proofs. Groq translates details into detailed educational steps.
               </p>
 
               {/* Pre-sets */}
@@ -242,35 +208,25 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
             </div>
 
             <form onSubmit={handleSolve}>
-              <div className="flex gap-4 mb-4">
-                
-
-              </div>
-
               <textarea
                 required
                 placeholder="e.g. Find the roots of f(x) = x^3 - 3x^2 + x - 3 or formulate a step-by-step limits rule."
                 value={problemText}
                 onChange={(e) => setProblemText(e.target.value)}
-                className="w-full p-4 rounded-xl bg-slate-950 border border-slate-800 text-sm font-sans focus:border-cyan-500 focus:ring-0 text-[#dfe2f3] placeholder-slate-600 outline-none resize-none transition-all"
+                className="w-full p-4 rounded-xl bg-slate-950 border border-slate-800 text-sm font-sans focus:border-cyan-500 focus:ring-0 text-[#dfe2f3] placeholder-slate-600 outline-none resize-none transition-all mb-4"
                 rows={6}
               />
               <button
                 type="submit"
-                disabled={solving || !problemText.trim() || quotaActive}
+                disabled={solving || !problemText.trim()}
                 className={`w-full cursor-pointer bg-gradient-to-r from-cyan-500 to-cyan-300 font-mono text-xs uppercase tracking-wider font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all duration-300 text-slate-950 ${
-                  solving || !problemText.trim() || quotaActive ? "opacity-35 cursor-not-allowed" : "hover:shadow-[0_0_20px_rgba(3,226,255,0.4)]"
+                  solving || !problemText.trim() ? "opacity-35 cursor-not-allowed" : "hover:shadow-[0_0_20px_rgba(3,226,255,0.4)]"
                 }`}
               >
                 {solving ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
                     <span>Resolving Orbit...</span>
-                  </>
-                ) : quotaActive ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-                    <span>Cooldown active ({quotaCountdown}s)...</span>
                   </>
                 ) : (
                   <>
@@ -293,7 +249,7 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
                 <div className="space-y-2">
                   <h4 className="text-[#00FBFF] text-lg font-bold font-sans tracking-tight animate-pulse">Calibrating Vector Steps</h4>
                   <p className="text-xs text-slate-400 max-w-sm mx-auto font-sans">
-                    MathVerse is parsing structural logic via server-side Gemini generation. Formulating intuitive answers with takeaways.
+                    MathVerse is parsing structural logic via server-side Groq generation. Formulating intuitive answers with takeaways.
                   </p>
                 </div>
                 
@@ -301,7 +257,7 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
                 <div className="w-full max-w-md space-y-3 mt-4">
                   <div className="h-4 bg-slate-900 rounded-full animate-pulse w-3/4"></div>
                   <div className="h-3.5 bg-slate-900 rounded-full animate-pulse w-11/12"></div>
-                  <div className="h-3.5 /bg-slate-900 bg-slate-900/60 rounded-full animate-pulse w-5/6"></div>
+                  <div className="h-3.5 bg-slate-900/60 rounded-full animate-pulse w-5/6"></div>
                   <div className="h-4 bg-slate-900/40 rounded-full animate-pulse w-2/3"></div>
                 </div>
               </div>
@@ -312,24 +268,10 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
               <div className="glass-card rounded-2xl p-6 border border-red-500/30 bg-red-950/10 flex items-start gap-4 min-h-[150px] mb-4">
                 <AlertCircle className="text-red-400 w-6 h-6 flex-shrink-0 mt-0.5" />
                 <div className="space-y-2">
-                  <h4 className="text-red-200 font-bold text-sm">Resolution Calibration Limit</h4>
+                  <h4 className="text-red-200 font-bold text-sm">Service Unavailable</h4>
                   <p className="text-xs text-red-300/80 leading-relaxed max-w-md">
                     {error}
                   </p>
-                  {quotaActive && (
-                    <p className="text-xs text-amber-400 font-mono">
-                      Quota Limit Cooldown: Re-calibrating in **{quotaCountdown}** seconds.
-                    </p>
-                  )}
-                  <div className="text-[10px] text-slate-400 font-mono mt-4 pt-4 border-t border-white/5 space-y-1.5">
-                    <p className="text-cyan-400 font-semibold uppercase tracking-wider">💡 Troubleshooting Steps:</p>
-                    <ul className="list-disc pl-4 space-y-1 text-slate-400">
-                      <li>Ensure your Google AI Studio API key project has available free-tier quota.</li>
-                      <li>Review your key usage limits inside the Google Cloud Console / AI Studio settings.</li>
-                      <li>Verify if you need to upgrade billing or generate a new API key.</li>
-                      <li>Local offline arithmetic parser fallbacks will render step equations immediately below where possible.</li>
-                    </ul>
-                  </div>
                 </div>
               </div>
             )}
@@ -388,10 +330,8 @@ export default function AISolverScreen({ userState, onBack, onIncrementSolved }:
 
               </div>
             )}
+          </div>
         </div>
-</div>
-
-
       </main>
     </div>
   );

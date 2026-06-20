@@ -319,7 +319,7 @@ export default function ProfileScreen({
                   {learningPreference?.mode || "Detailed"}
                 </div>
                 <p className="text-[10px] text-slate-500">
-                  Gemini answers will align automatically with this cognitive instruction preference.
+                  Groq answers will align automatically with this cognitive instruction preference.
                 </p>
               </div>
             </div>
@@ -363,7 +363,7 @@ export default function ProfileScreen({
                 </h3>
               </div>
               <p className="text-xs text-slate-400">
-                Personalize the way the built-in Gemini AI generates solutions and explanations across MathVerse.
+                Personalize the way the built-in Groq AI generates solutions and explanations across MathVerse.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

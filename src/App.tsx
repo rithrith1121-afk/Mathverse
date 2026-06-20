@@ -1,3 +1,4 @@
+import React from "react";
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import OnboardingScreen from "./components/OnboardingScreen";
@@ -55,6 +56,28 @@ export default function App() {
       setScreen("dashboard");
     }
   }, [userState.onboarded, screen]);
+
+  // Offline detection state
+  const [isOffline, setIsOffline] = React.useState(!navigator.onLine);
+
+  // Listen for online/offline events
+  React.useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Render an offline banner at top when offline
+  const OfflineBanner = () => (
+    <div className="bg-red-900 text-white text-center py-2 font-mono text-sm">
+      MathVerse cannot reach the backend (Supabase). Check your internet connection or Supabase URL.
+    </div>
+  );
 
   // Listen for Supabase auth state changes
   useEffect(() => {

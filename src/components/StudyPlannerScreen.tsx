@@ -230,7 +230,7 @@ export default function StudyPlannerScreen({ userState, onBack }: StudyPlannerSc
               <Calendar className="w-5 h-5 text-cyan-400" /> Quantum Schedule & AI Planner
             </h2>
             <p className="text-xs text-slate-400 max-w-2xl">
-              Establish study slots, formulate daily milestone goals, and deploy advanced Gemini AI study coordination programs tailored around your target curriculum.
+              Establish study slots, formulate daily milestone goals, and deploy advanced Groq AI study coordination programs tailored around your target curriculum.
             </p>
           </div>
         </div>
@@ -322,7 +322,7 @@ export default function StudyPlannerScreen({ userState, onBack }: StudyPlannerSc
               </h3>
               
               <p className="text-[11px] text-slate-400">
-                Choose focus topics from the category level below. Gemini will synthesize a customized 7-day revision schedule with formulas.
+                Choose focus topics from the category level below. Groq will synthesize a customized 7-day revision schedule with formulas.
               </p>
 
               <div className="flex flex-wrap gap-2 pt-2">

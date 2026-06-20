@@ -158,7 +158,7 @@ export async function getAIStudyPlans(userId: string): Promise<AIStudyPlan[]> {
 }
 
 /**
- * Generate a revision plan using Gemini AI via the backend server proxy.
+ * Generate a revision plan using Groq AI via the backend server proxy.
  */
 export async function generateRevisionPlan(userId: string, weakTopics: string[], level: string): Promise<string> {
   try {

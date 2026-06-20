@@ -229,9 +229,9 @@ export async function saveLearningMode(userId: string, mode: LearningPreference[
 }
 
 /**
- * Apply selected learning mode instructions to Gemini prompt instructions.
+ * Apply selected learning mode instructions to Groq prompt instructions.
  */
-export function applyLearningModeToGeminiPrompt(prompt: string, mode: LearningPreference['mode']): string {
+export function applyLearningModeToGroqPrompt(prompt: string, mode: LearningPreference['mode']): string {
   let instruction = '';
   switch (mode) {
     case 'simple':

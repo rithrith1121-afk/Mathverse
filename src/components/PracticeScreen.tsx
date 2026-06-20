@@ -21,7 +21,7 @@ export default function PracticeScreen({ userState, selectedTopic, onBack, onAdd
   const [isAnswered, setIsAnswered] = useState(false);
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
 
-  // Load questions from Gemini API prompt on Mount
+  // Load questions from Groq API prompt on Mount
   const fetchQuestions = async () => {
     setLoading(true);
     setError("");
@@ -53,7 +53,7 @@ export default function PracticeScreen({ userState, selectedTopic, onBack, onAdd
       }
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "An issue occurred. Ensure Gemini secrets keys are healthy.");
+      setError(err?.message || "An issue occurred. Ensure Groq secrets keys are healthy.");
     } finally {
       setLoading(false);
     }
@@ -118,7 +118,7 @@ export default function PracticeScreen({ userState, selectedTopic, onBack, onAdd
             <div>
               <h4 className="text-[#00FBFF] text-md font-bold font-mono">Synthesizing Smart Evaluation Vector</h4>
               <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed mt-1">
-                Gemini is composing custom equations according to orbits matching {currentLevel.name}. Just a moment...
+                Groq is composing custom equations according to orbits matching {currentLevel.name}. Just a moment...
               </p>
             </div>
           </div>

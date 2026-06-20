@@ -168,7 +168,7 @@ export default function DashboardScreen({
                   MathVerse AI Search Solver
                 </h4>
                 <p className="text-xs text-slate-400 font-sans leading-relaxed">
-                  Type or paste any complex formula, calculus equation, geometry proof, or algebra riddle. Gemini will generate a pedagogical, customized step-by-step resolution orbit.
+                  Type or paste any complex formula, calculus equation, geometry proof, or algebra riddle. Groq will generate a pedagogical, customized step-by-step resolution orbit.
                 </p>
               </div>
 
